@@ -1,8 +1,10 @@
-import {EventEmitter, Injectable, OnInit} from "@angular/core";
-import {Recipe} from "./recipe.model";
-import {Ingredient} from "../common/ingredient";
-import {ShoppingService} from "../shopping/shopping.service";
-import {Subject} from "rxjs/Subject";
+import { EventEmitter, Injectable } from "@angular/core";
+import { Recipe } from "./recipe.model";
+import { Ingredient } from "../common/ingredient";
+import { ShoppingService } from "../shopping/shopping.service";
+import { Subject } from "rxjs/Subject";
+import { AppDataService } from '../common/service/app-data.service';
+import { Observable } from 'rxjs/Observable';
 
 @Injectable()
 export class RecipesService {
@@ -10,7 +12,7 @@ export class RecipesService {
   selectRecipeEventEmitter: EventEmitter<Recipe> = new EventEmitter();
   recipesListEditSubject:Subject<Recipe[]> = new Subject<Recipe[]>();
 
-  constructor(private shoppingService: ShoppingService) {
+  constructor(private shoppingService: ShoppingService, private appDataService: AppDataService) {
     this.recipes.push(new Recipe(1, "Chicken Tikka Masala", "Spicy indian cuisince", "https://food.fnr.sndimg.com/content/dam/images/food/fullset/2011/2/27/0/ZA0207H_chicken-in-creamy-tomato-curry-chicken-tikka-masala_s4x3.jpg.rend.hgtvcom.616.462.suffix/1387303023791.jpeg",
       [
         new Ingredient('Chicken', 10),
@@ -28,10 +30,27 @@ export class RecipesService {
         new Ingredient('Gobi', 10),
         new Ingredient('Mattar', 5)
       ]));
+
+    this.appDataService.saveDataEvent.subscribe(() => {
+       this.appDataService.saveRecipes(this.fetchRecipes()).subscribe((response) => {
+         console.log('Inside RecipesService saved data ', response);
+      });
+    });
+
+    this.appDataService.fetchDataEvent.subscribe(() => {
+      this.appDataService.fetchAllRecipes().subscribe((fetchedRecipes) => {
+        console.log('Inside RecipesService fething data ', fetchedRecipes);
+        this.recipes = fetchedRecipes;
+
+      })
+    })
+
   }
 
   fetchRecipes():Recipe[] {
-    return this.recipes.slice();
+    let recipes = this.recipes.slice();
+    console.log('Inside RecipesService.fetchRecipes ', this.recipes)
+    return recipes;
   }
 
   selectRecipe(selected: Recipe) {
@@ -61,6 +80,16 @@ export class RecipesService {
 
   updateRecipe(updated: Recipe) {
     this.recipes.splice(updated.id - 1, 1, updated);
+    this.publishRecipesChanged();
+  }
+
+  deleteRecipe(recipe: Recipe) {
+    this.recipes.splice(recipe.id - 1, 1);
     this.recipesListEditSubject.next(this.fetchRecipes());
   }
+
+  private publishRecipesChanged() {
+    this.recipesListEditSubject.next(this.fetchRecipes());
+  }
+
 }
